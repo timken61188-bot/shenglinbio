@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>骨密巡迴車 行程申請</title>
+<style>
+  :root {
+    --teal: #0E7C86;
+    --teal-dark: #0A5E66;
+    --green: #2F9E67;
+    --green-bg: #EAF6EF;
+    --green-border: #BFE6CE;
+    --amber: #D97706;
+    --amber-bg: #FDF2E3;
+    --amber-border: #F3D9AE;
+    --gray: #9CA3AF;
+    --gray-bg: #F3F4F6;
+    --gray-border: #E5E7EB;
+    --past-bg: #FAFAFA;
+    --past-border: #F1F1F1;
+    --text: #1F2937;
+    --muted: #6B7280;
+    --bg: #F3F7F6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .header {
+    background: var(--teal);
+    padding: 28px 24px 20px;
+    color: #fff;
+  }
+  .header .org { font-size: 13px; color: #CFEAE8; font-weight: 500; margin-bottom: 4px; }
+  .header h1 { font-size: 22px; margin: 0; font-weight: 700; }
+
+  .month-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 8px;
+  }
+  .month-nav button {
+    width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--gray-border);
+    background: #fff; color: var(--teal); font-size: 16px; cursor: pointer;
+  }
+  .month-nav button:disabled { opacity: 0.35; cursor: default; }
+  .month-nav .label { font-size: 17px; font-weight: 700; }
+
+  .card {
+    margin: 8px 20px 0; background: #fff; border-radius: 16px; padding: 16px;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+  }
+
+  .weekdays, .days {
+    display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px;
+  }
+  .weekdays div { text-align: center; font-size: 12px; font-weight: 600; color: #374151; padding-bottom: 6px; }
+  .weekdays div.weekend { color: var(--gray); }
+
+  .day-cell {
+    position: relative; aspect-ratio: 1; border-radius: 10px; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    background: transparent; border: 1px solid transparent;
+  }
+  .day-cell.empty { visibility: hidden; cursor: default; }
+  .day-cell .dot { position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 999px; }
+
+  .day-cell.status-available { background: var(--green-bg); border-color: var(--green-border); color: #166B3E; font-weight: 600; }
+  .day-cell.status-available .dot { background: var(--green); }
+
+  .day-cell.status-pending { background: var(--amber-bg); border-color: var(--amber-border); color: #8A5A05; font-weight: 600; }
+  .day-cell.status-pending .dot { background: var(--amber); }
+
+  .day-cell.status-booked { background: var(--gray-bg); border-color: var(--gray-border); color: var(--gray); }
+  .day-cell.status-booked .dot { background: var(--gray); }
+
+  .day-cell.status-past { background: var(--past-bg); border-color: var(--past-border); color: #D1D5DB; cursor: default; }
+
+  .day-cell.selected { background: var(--teal) !important; color: #fff !important; border: 2px solid var(--teal-dark) !important; }
+  .day-cell.selected .dot { background: #fff !important; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 24px 4px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend-item .swatch { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+
+  .detail { margin: 12px 20px 0; background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
+  .detail .title { font-size: 15px; font-weight: 700; }
+  .detail .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .badge { font-size: 12px; font-weight: 700; color: #fff; padding: 3px 10px; border-radius: 999px; }
+  .badge-available { background: var(--green); }
+  .badge-pending { background: var(--amber); }
+  .badge-booked { background: var(--gray); }
+  .badge-past { background: #D1D5DB; }
+  .subtext { font-size: 13px; color: var(--muted); }
+  .detail-extra { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
+  .btn-primary, .btn-secondary {
+    display: block; text-align: center; font-size: 15px; font-weight: 700;
+    padding: 13px; border-radius: 12px; margin-top: 12px; text-decoration: none;
+  }
+  .btn-primary { background: var(--teal); color: #fff; }
+  .btn-secondary { background: #fff; color: var(--teal); border: 1.5px solid var(--teal); }
+
+  .footer { padding: 20px 24px 36px; text-align: center; }
+  .footer a { font-size: 13px; color: var(--muted); text-decoration: underline; }
+
+  .state-msg { padding: 40px 24px; text-align: center; color: var(--muted); font-size: 14px; }
+  .retry-btn { margin-top: 12px; padding: 10px 20px; border-radius: 999px; border: 1px solid var(--teal); background: #fff; color: var(--teal); cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="org">昇霖股份有限公司</div>
+  <h1>骨密巡迴車　行程申請</h1>
+</div>
+
+<div id="app">
+  <div class="state-msg" id="loading">資料讀取中…</div>
+</div>
+
+<div class="footer">
+  <a href="#" id="infoLink">巡迴車申請須知與資格說明</a>
+</div>
+
+<script>
+// ========== 設定區 ==========
+const API_URL = 'https://script.google.com/macros/s/AKfycbyM2czRVclY-fAPq8lCFFc9pz2NYLzU9BjER4t-87FrtsjHfFaV2wxEB4hQwPSktBCG/exec';
+const APPLY_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfO94DLUN7-o8URLy0ZSlQxwDz-tXU-54zmzwyl445DcQDB-w/viewform';
+const WAITLIST_URL = APPLY_FORM_URL; // 目前沿用同一份表單，之後可換成候補專用表單
+
+const STATUS_LABEL = {
+  available: '可預約',
+  pending: '審核中',
+  booked: '已額滿',
+  past: '已過期'
+};
+
+let allDays = {};      // { '2026-10-21': {status, unit, contact, phone, note} }
+let monthKeys = [];     // ['2026-10', ...] 由資料裡整理出來，由小到大排序
+let currentMonthIndex = 0;
+let selectedDate = null;
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+async function loadData() {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="state-msg" id="loading">資料讀取中…</div>';
+  try {
+    const res = await fetch(API_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+
+    allDays = {};
+    (json.days || []).forEach(d => { allDays[d.date] = d; });
+
+    monthKeys = Array.from(new Set(Object.keys(allDays).map(d => d.slice(0, 7)))).sort();
+
+    if (monthKeys.length === 0) {
+      app.innerHTML = '<div class="state-msg">目前尚未有可顯示的行事曆資料。<br>請先在 Google試算表執行「初始化行事曆」。</div>';
+      return;
+    }
+
+    // 預設顯示包含今天的月份，若今天不在範圍內就顯示第一個月
+    const today7 = todayStr().slice(0, 7);
+    currentMonthIndex = monthKeys.indexOf(today7);
+    if (currentMonthIndex === -1) currentMonthIndex = 0;
+
+    selectedDate = null;
+    render();
+  } catch (err) {
+    app.innerHTML =
+      '<div class="state-msg">資料讀取失敗，請確認網路連線或稍後再試。<br>' +
+      '<span style="font-size:12px;color:#B91C1C;">' + escapeHtml(err.message) + '</span><br>' +
+      '<button class="retry-btn" onclick="loadData()">重新整理</button></div>';
+  }
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function buildCalendarCells(monthKey) {
+  const [year, month] = monthKey.split('-').map(Number);
+  const firstWeekday = new Date(year, month - 1, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = todayStr();
+
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = year + '-' + pad(month) + '-' + pad(day);
+    const info = allDays[dateStr];
+    let status = info ? info.status : 'available';
+    if (dateStr < today) status = 'past';
+    cells.push({ date: dateStr, day, status, info: info || null });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  const monthKey = monthKeys[currentMonthIndex];
+  const [year, month] = monthKey.split('-');
+  const cells = buildCalendarCells(monthKey);
+
+  const weekdayLabels = ['日','一','二','三','四','五','六'];
+
+  let html = '';
+
+  // 月份導覽
+  html += '<div class="month-nav">';
+  html += '<button ' + (currentMonthIndex === 0 ? 'disabled' : '') + ' onclick="changeMonth(-1)">‹</button>';
+  html += '<div class="label">' + year + ' 年 ' + parseInt(month, 10) + ' 月</div>';
+  html += '<button ' + (currentMonthIndex === monthKeys.length - 1 ? 'disabled' : '') + ' onclick="changeMonth(1)">›</button>';
+  html += '</div>';
+
+  // 月曆卡片
+  html += '<div class="card">';
+  html += '<div class="weekdays">';
+  weekdayLabels.forEach((label, i) => {
+    html += '<div class="' + (i === 0 || i === 6 ? 'weekend' : '') + '">' + label + '</div>';
+  });
+  html += '</div>';
+
+  html += '<div class="days">';
+  cells.forEach(cell => {
+    if (!cell) { html += '<div class="day-cell empty"></div>'; return; }
+    const isSelected = cell.date === selectedDate;
+    const showDot = cell.status !== 'past';
+    html += '<button class="day-cell status-' + cell.status + (isSelected ? ' selected' : '') + '" ' +
+      (cell.status === 'past' ? '' : 'onclick="selectDate(\'' + cell.date + '\')"') +
+      ' aria-label="' + cell.date + ' ' + STATUS_LABEL[cell.status] + '">' +
+      cell.day +
+      (showDot ? '<span class="dot"></span>' : '') +
+      '</button>';
+  });
+  html += '</div></div>';
+
+  // 圖例
+  html += '<div class="legend">';
+  html += legendItem('var(--green)', '可預約');
+  html += legendItem('var(--amber)', '審核中');
+  html += legendItem('var(--gray)', '已額滿');
+  html += legendItem('#D1D5DB', '已過期');
+  html += '</div>';
+
+  // 詳細卡片
+  html += '<div class="detail" id="detailCard">' + renderDetail() + '</div>';
+
+  app.innerHTML = html;
+}
+
+function legendItem(color, label) {
+  return '<div class="legend-item"><span class="swatch" style="background:' + color + '"></span>' + label + '</div>';
+}
+
+function renderDetail() {
+  if (!selectedDate) {
+    return '<div class="subtext">點選上方日期，查看該日狀態與申請方式。</div>';
+  }
+  const info = allDays[selectedDate];
+  const status = selectedDate < todayStr() ? 'past' : (info ? info.status : 'available');
+  const dateLabel = selectedDate.replace(/-/g, ' / ');
+
+  let html = '<div class="title">' + dateLabel + '</div>';
+  html += '<div class="row"><span class="badge badge-' + status + '">' + STATUS_LABEL[status] + '</span>';
+
+  if (status === 'available') {
+    html += '<span class="subtext">目前尚未有單位申請</span></div>';
+    html += '<a class="btn-primary" href="' + APPLY_FORM_URL + '" target="_blank" rel="noopener">前往場地申請表單</a>';
+  } else if (status === 'pending') {
+    html += '<span class="subtext">已有單位申請，審核中</span></div>';
+    if (info && info.unit) {
+      html += '<div class="detail-extra">申請單位：' + escapeHtml(info.unit) + '</div>';
+    }
+    html += '<a class="btn-primary" href="' + APPLY_FORM_URL + '" target="_blank" rel="noopener">前往場地申請表單</a>';
+  } else if (status === 'booked') {
+    html += '<span class="subtext">該日巡迴車已被預約</span></div>';
+    if (info && info.unit) {
+      html += '<div class="detail-extra">申請單位：' + escapeHtml(info.unit) + '</div>';
+    }
+    html += '<a class="btn-secondary" href="' + WAITLIST_URL + '" target="_blank" rel="noopener">加入候補通知</a>';
+  } else {
+    html += '<span class="subtext">此日期已過，請選擇未來日期</span></div>';
+  }
+
+  return html;
+}
+
+function selectDate(dateStr) {
+  selectedDate = dateStr;
+  render();
+  document.getElementById('detailCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function changeMonth(delta) {
+  const next = currentMonthIndex + delta;
+  if (next < 0 || next >= monthKeys.length) return;
+  currentMonthIndex = next;
+  selectedDate = null;
+  render();
+}
+
+// 若之後要放進 LIFF，可在這裡加入 liff.init({ liffId: 'YOUR_LIFF_ID' }) 再呼叫 loadData()
+loadData();
+</script>
+</body>
+</html>
